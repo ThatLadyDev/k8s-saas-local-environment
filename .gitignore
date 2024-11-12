@@ -1,0 +1,15 @@
+.idea
+/logs
+/data
+.env
+/.project
+/.vscode
+.docker-sync
+
+projects/
+
+/nginx/ssl/*.crt
+/nginx/ssl/*.key
+/nginx/ssl/*.csr
+
+.DS_Store
