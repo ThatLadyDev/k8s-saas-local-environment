@@ -1,0 +1,88 @@
+networks:
+  saas_network:
+    driver: ${NETWORKS_DRIVER}
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: database
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      DEFAULT_MYSQL_DATABASE: multi-tenant-saas
+      DB_DATABASE_BILLING: ${BILLING_SERVICE_DATABASE}
+      DB_DATABASE_NOTIFICATION: ${NOTIFICATION_SERVICE_DATABASE}
+      DB_DATABASE_AUTH: ${AUTH_SERVICE_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql/init.sh:/docker-entrypoint-initdb.d/init.sh 
+      - ./mysql/user-creation.sql:/docker-entrypoint-initdb.d/user-creation.sql
+      - ./mysql/db-creation.sql:/docker-entrypoint-initdb.d/db-creation.sql
+    networks:
+      - saas_network
+
+  billify-saas:
+    build:
+      context: ./laravel-saas
+      dockerfile: Dockerfile
+    container_name: billing-service
+    ports:
+      - "8050:8050"
+    environment:
+      APP_PORT: ${BILLING_SERVICE_APP_PORT}
+    volumes:
+      - ./projects/billify-saas:/var/www/app
+      - ./nginx/default.conf /etc/nginx/sites-available/default
+    networks:
+      - saas_network
+    depends_on:
+      - mysql
+
+  notifi-saas:
+    build:
+      context: ./laravel-saas
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "8060:8060"
+    environment:
+      APP_PORT: ${NOTIFICATION_SERVICE_APP_PORT}
+    volumes:
+      - ./projects/notifi-saas:/var/www/app
+      - ./nginx/default.conf /etc/nginx/sites-available/default
+    networks:
+      - saas_network
+    depends_on:
+      - mysql
+
+  autho-saas:
+    build:
+      context: ./laravel-saas
+      dockerfile: Dockerfile
+    container_name: authentication-service
+    ports:
+      - "8070:8070"
+    environment:
+      APP_PORT: ${AUTH_SERVICE_APP_PORT}
+    volumes:
+      - ./projects/autho-saas:/var/www/app
+      - ./nginx/default.conf /etc/nginx/sites-available/default
+    networks:
+      - saas_network
+    depends_on:
+      - mysql
+
+  mailpit:
+    image: 'axllent/mailpit:latest'
+    ports:
+      - '${FORWARD_MAILPIT_PORT:-1025}:1025'
+      - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
+    networks:
+      - saas_network
+
+volumes:
+  db_data:
