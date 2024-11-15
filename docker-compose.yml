@@ -4,15 +4,18 @@ networks:
 
 services:
   mysql:
-    image: mysql:8.0
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
     container_name: database
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
-      DEFAULT_MYSQL_DATABASE: multi-tenant-saas
+      DEFAULT_MYSQL_DATABASE: multi_tenant_saas
       DB_DATABASE_BILLING: ${BILLING_SERVICE_DATABASE}
       DB_DATABASE_NOTIFICATION: ${NOTIFICATION_SERVICE_DATABASE}
       DB_DATABASE_AUTH: ${AUTH_SERVICE_DATABASE}
+      DB_DATABASE_API_SERVICE: ${SAAS_API_SERVICE_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
@@ -20,8 +23,7 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./mysql/init.sh:/docker-entrypoint-initdb.d/init.sh 
-      - ./mysql/user-creation.sql:/docker-entrypoint-initdb.d/user-creation.sql
-      - ./mysql/db-creation.sql:/docker-entrypoint-initdb.d/db-creation.sql
+      - ./mysql/scripts:/scripts
     networks:
       - saas_network
 
@@ -30,13 +32,13 @@ services:
       context: ./laravel-saas
       dockerfile: Dockerfile
     container_name: billing-service
-    ports:
-      - "8050:8050"
     environment:
-      APP_PORT: ${BILLING_SERVICE_APP_PORT}
+      APP_ENV: "local"
+      APP_URL: http://billify-saas:80
     volumes:
       - ./projects/billify-saas:/var/www/app
-      - ./nginx/default.conf /etc/nginx/sites-available/default
+      - ./nginx/default.conf:/etc/nginx/sites-available/default
+      - ./logs/nginx/billify-saas:/var/log/nginx/billify-saas
     networks:
       - saas_network
     depends_on:
@@ -47,13 +49,13 @@ services:
       context: ./laravel-saas
       dockerfile: Dockerfile
     container_name: notification-service
-    ports:
-      - "8060:8060"
     environment:
-      APP_PORT: ${NOTIFICATION_SERVICE_APP_PORT}
+      APP_ENV: "local"
+      APP_URL: http://notifi-saas:80
     volumes:
       - ./projects/notifi-saas:/var/www/app
-      - ./nginx/default.conf /etc/nginx/sites-available/default
+      - ./nginx/default.conf:/etc/nginx/sites-available/default
+      - ./logs/nginx/notifi-saas:/var/log/nginx/notifi-saas
     networks:
       - saas_network
     depends_on:
@@ -64,17 +66,40 @@ services:
       context: ./laravel-saas
       dockerfile: Dockerfile
     container_name: authentication-service
-    ports:
-      - "8070:8070"
     environment:
-      APP_PORT: ${AUTH_SERVICE_APP_PORT}
+      APP_ENV: "local"
+      APP_URL: http://autho-saas:80
     volumes:
       - ./projects/autho-saas:/var/www/app
-      - ./nginx/default.conf /etc/nginx/sites-available/default
+      - ./nginx/default.conf:/etc/nginx/sites-available/default
+      - ./logs/nginx/autho-saas:/var/log/nginx/autho-saas
     networks:
       - saas_network
     depends_on:
       - mysql
+
+  saas-api:
+    build:
+      context: ./laravel-saas
+      dockerfile: Dockerfile
+    container_name: api-middleware
+    ports:
+      - "${SAAS_API_SERVICE_APP_PORT}:80"
+    environment:
+      APP_ENV: "local"
+      APP_URL: http://localhost:${SAAS_API_SERVICE_APP_PORT}
+    volumes:
+      - ./projects/saas-api-middleware:/var/www/app
+      - ./nginx/default.conf:/etc/nginx/sites-available/default
+      - ./logs/nginx/saas-api-middleware:/var/log/nginx/saas-api-middleware
+    networks:
+      - saas_network
+    depends_on:
+      - mysql
+      - billify-saas
+      - notifi-saas
+      - autho-saas
+      - mailpit
 
   mailpit:
     image: 'axllent/mailpit:latest'
