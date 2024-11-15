@@ -14,6 +14,7 @@ cd projects
 git clone 'git@github.com:ThatLadyDev/notifi-saas.git'
 git clone 'git@github.com:ThatLadyDev/billify-saas.git'
 git clone 'git@github.com:ThatLadyDev/autho-saas.git'
+git clone 'git@github.com:ThatLadyDev/saas-api-middleware.git'
 
 cd ..
 
