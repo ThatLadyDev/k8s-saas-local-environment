@@ -1,7 +1,9 @@
 .idea
+.DS_Store
 /logs
 /data
 .env
+/deployment
 /.project
 /.vscode
 .docker-sync
